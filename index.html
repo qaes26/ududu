@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>أوتار النبض - رندا</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Aref+Ruqaa:wght@400;700&family=Cairo:wght@300;400;700&display=swap" rel="stylesheet">
+    
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #050505;
+            background-image: radial-gradient(circle at center, #1a1a2e 0%, #000000 100%);
+            overflow: hidden;
+            font-family: 'Cairo', sans-serif;
+            color: #fff;
+            touch-action: none; /* لمنع التمرير أثناء اللمس */
+        }
+
+        /* حاوية الرسالة في المنتصف */
+        #message-container {
+            position: absolute;
+            top: 35%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 90%;
+            max-width: 800px;
+            text-align: center;
+            z-index: 10;
+            pointer-events: none;
+        }
+
+        .text-chunk {
+            font-family: 'Aref Ruqaa', serif;
+            font-size: 2.2rem;
+            line-height: 1.8;
+            color: #e2e8f0;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all 1.5s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            text-shadow: 0 0 15px rgba(255, 255, 255, 0.3);
+            display: inline-block;
+            margin: 0 5px;
+        }
+
+        .text-chunk.visible {
+            opacity: 1;
+            transform: translateY(0);
+            text-shadow: 0 0 20px rgba(216, 180, 254, 0.8), 0 0 40px rgba(192, 132, 252, 0.4);
+        }
+
+        .highlight {
+            color: #d8b4fe;
+            font-size: 3rem;
+        }
+
+        /* حاوية الأوتار */
+        #strings-container {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 40%;
+            display: flex;
+            justify-content: space-evenly;
+            align-items: flex-end;
+            padding-bottom: 20px;
+            z-index: 20;
+            transition: opacity 2s ease;
+        }
+
+        .string {
+            width: 4px;
+            height: 100%;
+            background: linear-gradient(to top, rgba(255,255,255,0.1), rgba(216, 180, 254, 0.5), transparent);
+            position: relative;
+            cursor: pointer;
+            border-radius: 50px;
+            transition: all 0.1s ease;
+            box-shadow: 0 0 10px rgba(216, 180, 254, 0.2);
+        }
+
+        .string::before {
+            content: '';
+            position: absolute;
+            bottom: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 20px;
+            height: 20px;
+            background: rgba(216, 180, 254, 0.2);
+            border-radius: 50%;
+            filter: blur(5px);
+            transition: all 0.3s ease;
+        }
+
+        /* التأثير عند العزف على الوتر */
+        .string.active {
+            background: linear-gradient(to top, rgba(255,255,255,0.8), rgba(244, 114, 182, 1), transparent);
+            box-shadow: 0 0 30px rgba(244, 114, 182, 0.8), 0 0 60px rgba(216, 180, 254, 0.6);
+            width: 6px;
+        }
+
+        .string.active::before {
+            background: rgba(244, 114, 182, 0.8);
+            width: 40px;
+            height: 40px;
+            filter: blur(10px);
+        }
+
+        /* نبضة الضوء الصاعدة */
+        .light-pulse {
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 15px;
+            height: 40px;
+            background: #fff;
+            border-radius: 50%;
+            box-shadow: 0 0 20px #fff, 0 0 40px #f472b6;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        @keyframes shootUp {
+            0% { bottom: 0; opacity: 1; transform: translateX(-50%) scale(1); }
+            100% { bottom: 100%; opacity: 0; transform: translateX(-50%) scale(0.2); }
+        }
+
+        /* تعليمات البداية */
+        #instruction {
+            position: absolute;
+            bottom: 45%;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 1.2rem;
+            color: rgba(255, 255, 255, 0.5);
+            letter-spacing: 2px;
+            animation: pulseText 2s infinite;
+            pointer-events: none;
+            transition: opacity 1s ease;
+        }
+
+        @keyframes pulseText {
+            0%, 100% { opacity: 0.3; }
+            50% { opacity: 0.8; }
+        }
+
+        /* التوقيع */
+        #signature {
+            position: absolute;
+            bottom: 10%;
+            left: 50%;
+            transform: translateX(-50%);
+            font-family: 'Cairo', sans-serif;
+            font-size: 1.1rem;
+            color: #fbbf24;
+            opacity: 0;
+            transition: opacity 3s ease;
+            text-align: center;
+            border-top: 1px solid rgba(251, 191, 36, 0.3);
+            padding-top: 15px;
+        }
+
+        #signature.show {
+            opacity: 1;
+            text-shadow: 0 0 15px rgba(251, 191, 36, 0.6);
+        }
+
+        /* الجزيئات الخلفية */
+        canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 1;
+            pointer-events: none;
+        }
+
+        /* للتوافق مع شاشات الجوال */
+        @media (max-width: 600px) {
+            .text-chunk { font-size: 1.6rem; }
+            .highlight { font-size: 2.2rem; }
+            #message-container { top: 30%; }
+            #strings-container { height: 45%; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- خلفية النجوم المتلألئة -->
+    <canvas id="bg-canvas"></canvas>
+
+    <div id="instruction">المسي الأوتار لتعزفي رسالتي..</div>
+
+    <div id="message-container"></div>
+
+    <div id="strings-container">
+        <!-- سيتم توليد الأوتار بواسطة الجافاسكربت -->
+    </div>
+
+    <div id="signature">
+        بكل حُب،<br>
+        من إعداد قيس جازي 🤍
+    </div>
+
+    <script>
+        // --- 1. إعداد الصوت المبتكر (Web Audio API) ---
+        let audioCtx;
+        
+        // الترددات مضبوطة على السلم الخماسي (Pentatonic Scale) 
+        // لضمان أن أي عزف عشوائي سيشكل موسيقى متناغمة وجميلة
+        const frequencies = [261.63, 293.66, 329.63, 392.00, 440.00, 523.25, 587.33]; 
+
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
+
+        function playTone(freq) {
+            if (!audioCtx) return;
+            
+            const osc = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            const filter = audioCtx.createBiquadFilter();
+
+            // نوع الصوت: ناعم وحالم (Sine wave mixed with triangle feeling)
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+
+            // إضافة فلتر لجعله أعمق
+            filter.type = 'lowpass';
+            filter.frequency.value = 1000;
+
+            // هندسة صدى الصوت (Envelope)
+            gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
+            // هجوم سريع (Attack)
+            gainNode.gain.linearRampToValueAtTime(0.6, audioCtx.currentTime + 0.05);
+            // تلاشي بطيء جداً كأنه بيانو أو قيثارة سحرية (Release)
+            gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 3);
+
+            osc.connect(filter);
+            filter.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+
+            osc.start();
+            osc.stop(audioCtx.currentTime + 3.1);
+        }
+
+        // --- 2. إعداد الرسالة الرومانسية (مخصصة لـ رندا) ---
+        const messageParts = [
+            "<span class='highlight'>رندا..</span><br>",
+            "لم تكوني يوماً مجرد اسم يعبر في حياتي،<br>",
+            "بل أنتِ النبض الذي يعزف على أوتار قلبي.<br>",
+            "كلما مرّ طيفكِ...<br>",
+            "تراقصت روحي على لحنٍ لا يسمعه سواكِ.<br>",
+            "أنتِ النور الذي أضاء عتمة أيامي،<br>",
+            "والموسيقى التي أود أن أستمع إليها...<br>",
+            "إلى الأبد. ✨"
+        ];
+
+        let currentMessageIndex = 0;
+        const messageContainer = document.getElementById('message-container');
+        const instruction = document.getElementById('instruction');
+        const stringsContainer = document.getElementById('strings-container');
+        const signature = document.getElementById('signature');
+        let isLetterComplete = false;
+
+        // --- 3. بناء الأوتار والتفاعل ---
+        for (let i = 0; i < 7; i++) {
+            const stringDiv = document.createElement('div');
+            stringDiv.className = 'string';
+            
+            // إضافة النبضة الضوئية للوتر
+            const pulse = document.createElement('div');
+            pulse.className = 'light-pulse';
+            stringDiv.appendChild(pulse);
+
+            // دالة العزف
+            const pluckString = (e) => {
+                if(e) e.preventDefault(); // لمنع التحديد باللمس المزدوج
+                initAudio();
+                playTone(frequencies[i]);
+
+                // تأثير مرئي للوتر
+                stringDiv.classList.add('active');
+                pulse.style.animation = 'none';
+                void pulse.offsetWidth; // Trigger reflow
+                pulse.style.animation = 'shootUp 1s ease-out forwards';
+
+                setTimeout(() => stringDiv.classList.remove('active'), 200);
+
+                // إظهار الرسالة
+                revealNextMessagePart();
+            };
+
+            // دعم الماوس واللمس (للهواتف)
+            stringDiv.addEventListener('mousedown', pluckString);
+            stringDiv.addEventListener('touchstart', pluckString);
+            stringDiv.addEventListener('mouseenter', (e) => {
+                // تفعيل العزف بالتمرير (glissando) إذا كان الماوس مضغوطاً
+                if (e.buttons === 1) pluckString(e);
+            });
+            stringDiv.addEventListener('touchmove', (e) => {
+                 // للسماح بالعزف بالتمرير بالإصبع
+                 const touch = e.touches[0];
+                 const element = document.elementFromPoint(touch.clientX, touch.clientY);
+                 if(element && element.classList.contains('string') && element !== stringDiv) {
+                     // سيتم التعامل معها من خلال العنصر الآخر
+                 }
+            });
+
+            stringsContainer.appendChild(stringDiv);
+        }
+
+        // تفعيل التمرير المستمر بالأصابع على الشاشة
+        stringsContainer.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            const touch = e.touches[0];
+            const element = document.elementFromPoint(touch.clientX, touch.clientY);
+            if(element && element.classList.contains('string')) {
+                // محاكاة حدث الضغط إذا لم يكن نشطاً بالفعل للتو
+                if(!element.classList.contains('active')) {
+                    const event = new Event('touchstart');
+                    element.dispatchEvent(event);
+                }
+            }
+        }, { passive: false });
+
+        // --- 4. منطق ظهور الرسالة ---
+        function revealNextMessagePart() {
+            instruction.style.opacity = '0'; // إخفاء التعليمات عند بدء العزف
+
+            if (currentMessageIndex < messageParts.length && !isLetterComplete) {
+                const chunk = document.createElement('span');
+                chunk.className = 'text-chunk';
+                chunk.innerHTML = messageParts[currentMessageIndex];
+                messageContainer.appendChild(chunk);
+                
+                // تفعيل التأثير المرئي بعد إضافته للـ DOM
+                setTimeout(() => chunk.classList.add('visible'), 50);
+
+                currentMessageIndex++;
+
+                // عند الانتهاء من الرسالة
+                if (currentMessageIndex === messageParts.length) {
+                    isLetterComplete = true;
+                    setTimeout(() => {
+                        stringsContainer.style.opacity = '0'; // إخفاء الأوتار
+                        setTimeout(() => {
+                            stringsContainer.style.display = 'none';
+                            signature.classList.add('show'); // إظهار التوقيع
+                        }, 2000);
+                    }, 3000);
+                }
+            }
+        }
+
+        // --- 5. خلفية النجوم البسيطة ---
+        const canvas = document.getElementById('bg-canvas');
+        const ctx = canvas.getContext('2d');
+        let width, height;
+        let stars = [];
+
+        function resize() {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        for(let i=0; i<150; i++) {
+            stars.push({
+                x: Math.random() * width,
+                y: Math.random() * height,
+                radius: Math.random() * 1.5,
+                alpha: Math.random(),
+                speed: Math.random() * 0.02
+            });
+        }
+
+        function drawStars() {
+            ctx.clearRect(0, 0, width, height);
+            ctx.fillStyle = '#ffffff';
+            stars.forEach(star => {
+                ctx.globalAlpha = star.alpha;
+                ctx.beginPath();
+                ctx.arc(star.x, star.y, star.radius, 0, Math.PI*2);
+                ctx.fill();
+                
+                // وميض النجوم
+                star.alpha += star.speed;
+                if(star.alpha > 1 || star.alpha < 0) star.speed *= -1;
+            });
+            requestAnimationFrame(drawStars);
+        }
+        drawStars();
+
+        // تهيئة الصوت عند أول نقرة في أي مكان في الشاشة (متطلب للمتصفحات)
+        document.body.addEventListener('click', initAudio, { once: true });
+        document.body.addEventListener('touchstart', initAudio, { once: true });
+
+    </script>
+</body>
+</html>
+
+
